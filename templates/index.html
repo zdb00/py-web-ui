@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Python Script Controller</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .script-container {
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .terminal {
+            background-color: black;
+            color: white;
+            padding: 10px;
+            font-family: monospace;
+            height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+            border-radius: 3px;
+        }
+        .controls {
+            margin: 10px 0;
+        }
+        .package-manager {
+            margin: 20px 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .package-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        .package-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        button {
+            margin-right: 5px;
+            padding: 5px 10px;
+            border-radius: 3px;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #f0f0f0;
+        }
+        .requirements-button {
+            margin-left: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+        }
+        .requirements-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Python Script Controller</h1>
+    
+    <div class="package-manager">
+        <h2>Package Manager</h2>
+        <div>
+            <input type="text" id="packageName" placeholder="Package name">
+            <button onclick="installPackage()">Install Package</button>
+        </div>
+        <div class="package-list" id="packages"></div>
+    </div>
+    
+    <div id="scripts"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        const socket = io();
+        
+        function loadScripts() {
+            fetch('/api/scripts')
+                .then(response => response.json())
+                .then(scripts => {
+                    const scriptsDiv = document.getElementById('scripts');
+                    scriptsDiv.innerHTML = '';
+                    
+                    scripts.forEach(script => {
+                        const container = document.createElement('div');
+                        container.className = 'script-container';
+                        
+                        const controls = document.createElement('div');
+                        controls.className = 'controls';
+                        
+                        const startBtn = document.createElement('button');
+                        startBtn.textContent = script.running ? 'Restart' : 'Start';
+                        startBtn.onclick = () => startScript(script);
+                        
+                        const stopBtn = document.createElement('button');
+                        stopBtn.textContent = 'Stop';
+                        stopBtn.onclick = () => stopScript(script);
+                        stopBtn.disabled = !script.running;
+                        
+                        controls.appendChild(startBtn);
+                        controls.appendChild(stopBtn);
+                        
+                        if (script.has_requirements) {
+                            const reqBtn = document.createElement('button');
+                            reqBtn.textContent = 'Install Requirements';
+                            reqBtn.className = 'requirements-button';
+                            reqBtn.onclick = () => installRequirements(script);
+                            controls.appendChild(reqBtn);
+                        }
+                        
+                        const terminal = document.createElement('div');
+                        terminal.className = 'terminal';
+                        terminal.id = `terminal-${script.name}`;
+                        
+                        container.innerHTML = `<h3>${script.name}</h3>`;
+                        container.appendChild(controls);
+                        container.appendChild(terminal);
+                        
+                        scriptsDiv.appendChild(container);
+                        
+                        loadLogs(script.name);
+                    });
+                });
+        }
+        
+        function loadPackages() {
+            fetch('/api/packages')
+                .then(response => response.json())
+                .then(packages => {
+                    const packagesDiv = document.getElementById('packages');
+                    packagesDiv.innerHTML = '';
+                    
+                    packages.forEach(pkg => {
+                        const div = document.createElement('div');
+                        div.className = 'package-item';
+                        div.innerHTML = `
+                            <span>${pkg.name} (${pkg.version})</span>
+                            <button onclick="uninstallPackage('${pkg.name}')">Uninstall</button>
+                        `;
+                        packagesDiv.appendChild(div);
+                    });
+                });
+        }
+        
+        function installPackage() {
+            const packageName = document.getElementById('packageName').value;
+            if (!packageName) return;
+            
+            fetch('/api/packages/install', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ package: packageName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.success ? 'Package installed successfully' : 'Failed to install package: ' + data.output);
+                if (data.success) {
+                    document.getElementById('packageName').value = '';
+                    loadPackages();
+                }
+            });
+        }
+        
+        function uninstallPackage(packageName) {
+            fetch('/api/packages/uninstall', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ package: packageName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.success ? 'Package uninstalled successfully' : 'Failed to uninstall package: ' + data.output);
+                if (data.success) {
+                    loadPackages();
+                }
+            });
+        }
+        
+        function installRequirements(script) {
+            fetch('/api/install-requirements', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(script)
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.success ? 'Requirements installed successfully' : 'Failed to install requirements: ' + data.output);
+            });
+        }
+        
+        function startScript(script) {
+            fetch('/api/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(script)
+            }).then(() => loadScripts());
+        }
+        
+        function stopScript(script) {
+            fetch('/api/stop', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(script)
+            }).then(() => loadScripts());
+        }
+        
+        function loadLogs(scriptName) {
+            fetch(`/api/logs/${scriptName}`)
+                .then(response => response.json())
+                .then(data => {
+                    const terminal = document.getElementById(`terminal-${scriptName}`);
+                    if (terminal) {
+                        terminal.innerHTML = data.logs.replace(/\n/g, '<br>');
+                        terminal.scrollTop = terminal.scrollHeight;
+                    }
+                });
+        }
+        
+        socket.on('script_output', function(data) {
+            const terminal = document.getElementById(`terminal-${data.script}`);
+            if (terminal) {
+                terminal.innerHTML += data.output.replace(/\n/g, '<br>');
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+        });
+        
+        // Initial load
+        loadScripts();
+        loadPackages();
+        
+        // Refresh script list and packages periodically
+        setInterval(loadScripts, 5000);
+        setInterval(loadPackages, 10000);
+    </script>
+</body>
+</html>

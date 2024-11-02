@@ -1,9 +1,13 @@
 version: '3'
 services:
   python-controller:
-    build: .
+    build:
+      context: .
+      args:
+        - REPO_URL=https://github.com/zdb00/py-web-ui.git
+        - REPO_BRANCH=main
     volumes:
-      - /path/to/appdata/python-controller:/scripts
+      - /path/to/appdata/python-controller/scripts:/scripts
       - /path/to/appdata/python-controller/logs:/logs
       - /path/to/appdata/python-controller/venv:/venv
     ports:

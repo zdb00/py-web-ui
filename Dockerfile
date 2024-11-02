@@ -1,4 +1,3 @@
-# Dockerfile
 FROM python:3.11-slim
 
 LABEL maintainer="Your Name <your@email.com>"
@@ -8,7 +7,8 @@ LABEL description="Python Script Controller for Unraid"
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PORT=7447 \
-    VIRTUAL_ENV=/venv
+    VIRTUAL_ENV=/venv \
+    FLASK_ENV=production
 
 # Set work directory
 WORKDIR /app
@@ -26,8 +26,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p /scripts /logs
+# Create necessary directories with proper permissions
+RUN mkdir -p /scripts /logs /venv && \
+    chmod -R 755 /scripts /logs /venv
 
 # Volume configuration
 VOLUME ["/scripts", "/logs", "/venv"]

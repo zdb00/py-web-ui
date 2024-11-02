@@ -1,37 +1,43 @@
 # Dockerfile
 FROM python:3.11-slim
 
-# Install git
-RUN apt-get update && \
-    apt-get install -y git && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+LABEL maintainer="Your Name <your@email.com>"
+LABEL description="Python Script Controller for Unraid"
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=7447 \
+    VIRTUAL_ENV=/venv
 
 # Set work directory
 WORKDIR /app
 
-# Clone the repository (this will be replaced with your repo URL)
-ARG REPO_URL=https://github.com/zdb00/py-web-ui.git
-ARG REPO_BRANCH=main
+# Copy requirements first for better caching
+COPY requirements.txt .
 
-# Clone specific branch and remove .git directory to keep image size down
-RUN git clone --branch ${REPO_BRANCH} ${REPO_URL} . && \
-    rm -rf .git
-
-# Install controller requirements
-RUN pip install -r requirements.txt
-
-# Create virtual environment for user scripts
-ENV VIRTUAL_ENV=/venv
+# Create and activate virtual environment
 RUN python -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p /scripts /logs
 
 # Volume configuration
 VOLUME ["/scripts", "/logs", "/venv"]
 
-# Default port (can be overridden in Unraid)
-ENV PORT=7447
+# Expose port
 EXPOSE ${PORT}
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/ || exit 1
 
 # Start the application
 CMD ["python", "app.py"]

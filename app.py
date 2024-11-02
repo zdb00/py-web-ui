@@ -10,14 +10,31 @@ import json
 from datetime import datetime
 import pkg_resources
 import sys
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('/logs/app.log')
+    ]
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-socketio = SocketIO(app)
+socketio = SocketIO(app, cors_allowed_origins='*')  # Allow CORS for WebSocket
 
 SCRIPTS_DIR = "/scripts"
 LOGS_DIR = "/logs"
 VENV_DIR = "/venv"
 PORT = int(os.getenv('PORT', 7447))
+
+# Create necessary directories
+os.makedirs(SCRIPTS_DIR, exist_ok=True)
+os.makedirs(LOGS_DIR, exist_ok=True)
+os.makedirs(VENV_DIR, exist_ok=True)
 
 class ScriptProcess:
     def __init__(self, name, script_path, folder_path=None):
@@ -215,7 +232,13 @@ def get_logs(script_name):
     return jsonify({'logs': ''})
 
 if __name__ == '__main__':
-    os.makedirs(SCRIPTS_DIR, exist_ok=True)
-    os.makedirs(LOGS_DIR, exist_ok=True)
-    os.makedirs(VENV_DIR, exist_ok=True)
-    socketio.run(app, host='0.0.0.0', port=PORT)
+    try:
+        logger.info(f"Starting application on port {PORT}")
+        socketio.run(app, 
+                    host='0.0.0.0', 
+                    port=PORT,
+                    allow_unsafe_werkzeug=True,  # Allow Werkzeug in production
+                    log_output=True)
+    except Exception as e:
+        logger.error(f"Failed to start application: {str(e)}")
+        raise

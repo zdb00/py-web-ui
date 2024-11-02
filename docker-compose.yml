@@ -1,0 +1,13 @@
+version: '3'
+services:
+  python-controller:
+    build: .
+    volumes:
+      - /path/to/appdata/python-controller:/scripts
+      - /path/to/appdata/python-controller/logs:/logs
+      - /path/to/appdata/python-controller/venv:/venv
+    ports:
+      - "${PORT:-7447}:7447"
+    environment:
+      - PORT=7447
+    restart: unless-stopped

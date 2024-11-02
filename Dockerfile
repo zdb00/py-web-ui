@@ -11,7 +11,7 @@ RUN apt-get update && \
 WORKDIR /app
 
 # Clone the repository (this will be replaced with your repo URL)
-ARG REPO_URL=https://github.com/zdb00/py-web-ui/
+ARG REPO_URL=https://github.com/zdb00/py-web-ui.git
 ARG REPO_BRANCH=main
 
 # Clone specific branch and remove .git directory to keep image size down
